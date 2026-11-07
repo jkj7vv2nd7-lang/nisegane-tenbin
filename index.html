@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ニセ金はどれだ！ ― 天秤で3回勝負</title>
+<meta name="description" content="天秤を3回だけ使って、まぎれたニセ金を当てるシミュレーター。入門編・本編（12個）・発展編（借り玉）・お手本モード（第1表・第2表）つき。" />
+<link rel="icon" href="icon.png" />
+<link rel="apple-touch-icon" href="icon-180.png" />
+<style>
+  :root {
+    --ink: #3f3128; --sub: #8a7663; --paper: #f7efe2; --card: #fffdf8;
+    --line: #e3d3ba; --accent: #b45309; --accent2: #0f766e;
+    --gold: #f2b63c; --gold-d: #c77f16; --bad: #dc2626; --ok: #059669;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--paper); color: var(--ink); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 12px 12px 40px; }
+  h1 { font-size: 24px; text-align: center; margin: 10px 0 2px; letter-spacing: .04em; }
+  .subtitle { text-align: center; color: var(--sub); font-size: 13px; margin-bottom: 12px; }
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(120, 84, 30, .06); }
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 560px) { .mode-grid { grid-template-columns: 1fr; } }
+  .mode-btn { text-align: left; background: #fff; border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; cursor: pointer; font-family: inherit; }
+  .mode-btn:hover { border-color: var(--accent); }
+  .mode-btn .mt { font-size: 17px; font-weight: 800; color: var(--ink); }
+  .mode-btn .md { font-size: 12.5px; color: var(--sub); margin-top: 4px; line-height: 1.55; }
+  .mode-btn .rec { font-size: 11.5px; color: var(--accent2); margin-top: 5px; font-weight: 700; }
+  .hidden { display: none !important; }
+  /* ステータス */
+  .status-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .remain { font-size: 15px; font-weight: 800; background: #fef3c7; border: 2px solid #f59e0b; color: #92400e; border-radius: 999px; padding: 5px 14px; }
+  .remain.zero { background: #fee2e2; border-color: #f87171; color: #991b1b; }
+  .history { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .hist-chip { min-width: 34px; text-align: center; font-size: 17px; font-weight: 900; border-radius: 9px; padding: 3px 7px; border: 2px solid var(--line); background: #fff; color: var(--sub); }
+  .hist-chip.done { color: var(--ink); border-color: var(--accent); background: #fffbeb; }
+  .hist-label { font-size: 12px; color: var(--sub); font-weight: 700; }
+  /* 天秤ステージ */
+  #stage { position: relative; width: 100%; aspect-ratio: 720 / 430; background: linear-gradient(#fdf6e9, #f7ead2); border: 2px solid var(--line); border-radius: 16px; overflow: visible; touch-action: none; overscroll-behavior: none; }
+  #stage svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .pan-zone { position: absolute; width: 30%; height: 34%; bottom: 6%; border-radius: 14px; }
+  #panL { left: 1.5%; } #panR { right: 1.5%; }
+  .pan-zone.over { background: rgba(180, 83, 9, .10); outline: 2px dashed var(--accent); }
+  .pan-label { position: absolute; bottom: 1.5%; width: 30%; text-align: center; font-size: 12.5px; font-weight: 800; color: var(--sub); pointer-events: none; }
+  #panLblL { left: 1.5%; } #panLblR { right: 1.5%; }
+  .coin { position: absolute; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold) 55%, var(--gold-d)); border: 2.5px solid #9a6206; color: #6b4303; font-weight: 900; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none; box-shadow: 0 2px 5px rgba(90, 55, 0, .35); z-index: 5; transition: left .18s ease, top .18s ease; }
+  .coin.small { width: 36px; height: 36px; font-size: 14px; border-width: 2px; }
+  .coin.genuine { background: radial-gradient(circle at 35% 30%, #e2e8f0, #cbd5e1 55%, #94a3b8); border-color: #64748b; color: #334155; font-size: 15px; }
+  .coin.dragging { transition: none; z-index: 30; cursor: grabbing; transform: scale(1.12); box-shadow: 0 6px 14px rgba(90, 55, 0, .4); }
+  .coin.ghost { outline: 3px dashed var(--accent2); outline-offset: 2px; }
+  /* トレイ */
+  #tray { position: relative; min-height: 118px; background: #efe3cb; border: 2px dashed #cbb489; border-radius: 14px; margin-top: 10px; padding: 8px; }
+  #tray .tray-label { font-size: 12px; color: var(--sub); font-weight: 800; margin-bottom: 4px; }
+  /* ボタン類 */
+  .btn-row { display: flex; gap: 9px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }
+  .btn { font-family: inherit; font-size: 16px; font-weight: 800; border-radius: 999px; border: 2px solid var(--line); background: #fff; color: var(--ink); padding: 10px 20px; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-size: 18px; padding: 12px 30px; }
+  .btn.teal { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn.small { font-size: 13.5px; padding: 7px 14px; }
+  .msg { text-align: center; font-size: 15.5px; font-weight: 700; min-height: 24px; margin-top: 10px; line-height: 1.5; }
+  .msg.good { color: var(--ok); } .msg.bad { color: var(--bad); }
+  .guide { font-size: 14px; line-height: 1.7; background: #f0fdfa; border: 2px solid #99f6e4; border-radius: 12px; padding: 10px 14px; margin-top: 10px; }
+  .guide b { color: var(--accent2); }
+  /* 表 */
+  table.plan { border-collapse: collapse; margin: 8px auto; font-size: 13.5px; }
+  table.plan th, table.plan td { border: 1.5px solid var(--line); padding: 4px 8px; text-align: center; background: #fff; }
+  table.plan th { background: #fef3c7; }
+  table.plan tr.now td { background: #ecfdf5; font-weight: 800; }
+  table.plan tr.hit td { background: #fef3c7; font-weight: 900; }
+  .side-l { color: #b45309; font-weight: 900; } .side-r { color: #0f766e; font-weight: 900; } .side-o { color: #a8a29e; font-weight: 700; }
+  /* モーダル */
+  .modal-bg { position: fixed; inset: 0; background: rgba(63, 42, 16, .45); display: none; align-items: center; justify-content: center; z-index: 60; padding: 14px; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--card); border-radius: 18px; max-width: 640px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 20px; border: 2px solid var(--line); }
+  .modal h3 { margin: 2px 0 10px; font-size: 19px; text-align: center; }
+  .modal p, .modal li { font-size: 14.5px; line-height: 1.75; }
+  .pick-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 10px 0; }
+  .pick { width: 46px; height: 46px; border-radius: 50%; border: 2.5px solid #9a6206; background: radial-gradient(circle at 35% 30%, #ffe9a8, var(--gold) 55%, var(--gold-d)); color: #6b4303; font-weight: 900; font-size: 17px; cursor: pointer; font-family: inherit; }
+  .pick.sel { outline: 4px solid var(--accent); outline-offset: 2px; }
+  .dir-row { display: flex; gap: 10px; justify-content: center; margin: 8px 0; }
+  .dir-btn { font-family: inherit; font-size: 16px; font-weight: 800; padding: 9px 22px; border-radius: 999px; border: 2px solid var(--line); background: #fff; cursor: pointer; }
+  .dir-btn.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .level-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin: 6px 0 2px; }
+  .level-btn { font-family: inherit; font-size: 14px; font-weight: 800; padding: 8px 16px; border-radius: 999px; border: 2px solid var(--line); background: #fff; cursor: pointer; }
+  .level-btn.sel { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+  .confetti { position: fixed; top: -12px; z-index: 80; pointer-events: none; border-radius: 3px; }
+  .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .foot { text-align: center; color: var(--sub); font-size: 12px; margin-top: 14px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🪙 ニセ金はどれだ！</h1>
+  <div class="subtitle">― 天秤で3回勝負 ―</div>
+
+  <!-- モード選択 -->
+  <div id="scr-home">
+    <div class="card">
+      <p style="margin:2px 0 10px; font-size:14.5px; line-height:1.75;">金貨の中に、重さのちがう「ニセ金」が1枚まぎれています。天秤を使える回数は決まっています。皿に金貨をドラッグでのせて「量る」を押すと、天秤が傾きます。結果を手がかりに、ニセ金を当ててください。</p>
+      <div class="mode-grid">
+        <button class="mode-btn" data-mode="nyumon"><div class="mt">🌱 入門編</div><div class="md">ニセ金は「軽い」と分かっています。3枚・1回 → 9枚・2回 → 27枚・3回と、だんだん難しくなります。</div><div class="rec" id="rec-nyumon"></div></button>
+        <button class="mode-btn" data-mode="honpen"><div class="mt">⚖️ 本編（12枚・3回）</div><div class="md">金貨12枚、量れるのは3回。ニセ金が重いか軽いかは分かりません。古典パズルの本番です。</div><div class="rec" id="rec-honpen"></div></button>
+        <button class="mode-btn" data-mode="hatten"><div class="mt">🎁 発展編（借り玉）</div><div class="md">金貨8枚と、ホンモノと分かっている「借り玉」1枚。借り玉を皿にのせてもかまいません。3回で当てます。</div><div class="rec" id="rec-hatten"></div></button>
+        <button class="mode-btn" data-mode="otehon"><div class="mt">📖 お手本モード</div><div class="md">「第1表」の並べ方のとおりに量るだけで、答えが分かる方法を体験します。量り終わったら「第2表」で答え合わせ。</div><div class="rec" id="rec-otehon"></div></button>
+        <button class="mode-btn" data-mode="free"><div class="mt">🎲 自由練習</div><div class="md">枚数と回数を自分で決めて練習します。重いか軽いかは分からない設定です。</div><div class="rec" id="rec-free"></div></button>
+        <button class="mode-btn" id="howtoBtn"><div class="mt">📚 しくみ（コラム）</div><div class="md">なぜ3回で分かるのか。27と25の話、借り玉と13枚の話、誤差訂正符号へのつながりまで。</div></button>
+      </div>
+    </div>
+    <div class="foot">出典：『数理パズル』（中公新書427、1976）194〜201ページ「天秤でニセ金を見つける法」を題材に、文章・表・プログラムは新しく作りました。<br />不具合が出るかもしれません。実際にご使用の際に不具合がありましたらコメント欄からお知らせください。</div>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="scr-game" class="hidden">
+    <div class="top-row">
+      <button class="btn small" id="backBtn">← モード選択へ</button>
+      <button class="btn small" id="soundBtn">🔊 おと オン</button>
+    </div>
+    <div class="card" style="padding:12px 14px;">
+      <div class="status-bar">
+        <span class="remain" id="remainLbl">あと 3 回 量れます</span>
+        <span class="hist-label">結果：</span>
+        <span class="history" id="history"></span>
+      </div>
+      <div id="levelRow" class="level-row hidden"></div>
+      <div id="guideBox" class="guide hidden"></div>
+    </div>
+    <div id="stage">
+      <svg viewBox="0 0 720 430" preserveAspectRatio="none" aria-hidden="true">
+        <ellipse cx="360" cy="404" rx="150" ry="14" fill="#e7d6b4" />
+        <g id="beamG">
+          <line id="beamLine" x1="110" y1="86" x2="610" y2="86" stroke="#8a5a1d" stroke-width="13" stroke-linecap="round" />
+          <line id="strL1" x1="110" y1="86" x2="52" y2="196" stroke="#8a5a1d" stroke-width="4" />
+          <line id="strL2" x1="110" y1="86" x2="168" y2="196" stroke="#8a5a1d" stroke-width="4" />
+          <line id="strR1" x1="610" y1="86" x2="552" y2="196" stroke="#8a5a1d" stroke-width="4" />
+          <line id="strR2" x1="610" y1="86" x2="668" y2="196" stroke="#8a5a1d" stroke-width="4" />
+          <path id="panLpath" d="M 22 196 Q 110 252 198 196 Q 110 224 22 196 Z" fill="#b45309" stroke="#8a5a1d" stroke-width="3" />
+          <path id="panRpath" d="M 522 196 Q 610 252 698 196 Q 610 224 522 196 Z" fill="#b45309" stroke="#8a5a1d" stroke-width="3" />
+        </g>
+        <rect x="346" y="70" width="28" height="290" rx="10" fill="#a06a24" stroke="#8a5a1d" stroke-width="3" />
+        <circle cx="360" cy="86" r="15" fill="#f2b63c" stroke="#8a5a1d" stroke-width="4" />
+        <path d="M 288 402 L 432 402 L 402 356 L 318 356 Z" fill="#a06a24" stroke="#8a5a1d" stroke-width="3" />
+      </svg>
+      <div class="pan-zone" id="panL"></div>
+      <div class="pan-zone" id="panR"></div>
+      <div class="pan-label" id="panLblL">左の皿</div>
+      <div class="pan-label" id="panLblR">右の皿</div>
+    </div>
+    <div id="tray"><div class="tray-label">金貨置き場（ここからドラッグ）</div></div>
+    <div class="msg" id="msg"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="weighBtn">⚖️ 量る</button>
+      <button class="btn teal" id="answerBtn">🎯 こたえる</button>
+      <button class="btn" id="autoBtn">📖 お手本どおり並べる</button>
+      <button class="btn" id="retryBtn">↺ 最初から</button>
+    </div>
+    <div id="planBox" class="card hidden" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<!-- 答えモーダル -->
+<div class="modal-bg" id="answerModal">
+  <div class="modal">
+    <h3>🎯 ニセ金はどれ？</h3>
+    <p style="text-align:center;" id="answerLead">ニセ金だと思う金貨を1枚選んでください。</p>
+    <div class="pick-grid" id="pickGrid"></div>
+    <div class="dir-row" id="dirRow">
+      <button class="dir-btn" data-dir="heavy">重い</button>
+      <button class="dir-btn" data-dir="light">軽い</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn primary" id="decideBtn">これに決める</button>
+      <button class="btn" id="answerCancel">やめる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 結果モーダル -->
+<div class="modal-bg" id="resultModal">
+  <div class="modal">
+    <h3 id="resultTitle">🎉 正解！</h3>
+    <p id="resultText"></p>
+    <div id="resultExtra"></div>
+    <div class="btn-row">
+      <button class="btn primary" id="resultRetry">もう一度あそぶ</button>
+      <button class="btn" id="resultHome">モード選択へ</button>
+    </div>
+  </div>
+</div>
+
+<!-- コラム -->
+<div class="modal-bg" id="howtoModal">
+  <div class="modal">
+    <h3>📚 しくみ ― なぜ3回で分かるのか</h3>
+    <p><b>結果は3通り。</b>天秤を1回使うと、「左が下がる」「つり合う」「右が下がる」の3通りの結果が出ます。3回使えば、結果の組み合わせは 3×3×3＝<b>27通り</b>。</p>
+    <p><b>ニセ金の候補は25通り。</b>金貨12枚のうち、ニセ金は「どの枚か」×「重いか軽いか」で24通り。それに「ニセ金はなかった」が1通りで、全部で<b>25通り</b>。27 ≥ 25 だから、うまく量り方を選べば3回で全部を区別できるはずだ、というのが出発点です（4枚なら候補9通りで2回、13枚では27＝27で計算上はぴったり。ただし13枚は皿に同数をのせる条件を満たす並べ方ができず、ホンモノを1枚借りてくると可能になります）。</p>
+    <p><b>第1表と第2表。</b>お手本モードの方法は、最初に3回分の並べ方を全部決めてしまうやり方です。各金貨について「1回目・2回目・3回目に、左皿か右皿か外か」を決めたものが第1表。結果の並び（たとえば「左・右・つり合い」）は、その金貨の並びと一致すれば「重い」、反対になれば「軽い」と読めます。この読み取り表が第2表です。このアプリの表は、本の考え方をもとに新しく構成し、24通りすべてを区別できることを全数シミュレーションで確かめてあります。</p>
+    <p><b>借り玉の工夫。</b>ホンモノと分かっている玉が1枚あると、皿の枚数をそろえるのに使えて、並べ方の自由が広がります。本では8枚の場合が図解されています。発展編で試せます。</p>
+    <p><b>誤差訂正符号へ。</b>「結果の並び」から「どの金貨がどう違うか」を読み取る仕組みは、情報を正しく伝えるための数学「誤差訂正符号」の考え方と親戚です。結果の並びどうしが十分に離れているので、読み取りが一意に決まるのです。本（『数理パズル』194〜201ページ）では、この関係が紹介されています。</p>
+    <p><b>逐次法という考え方も。</b>1回目の結果を見てから2回目を決める方法（逐次法）も、本では議論されています。結果に応じて次の量り方を工夫するのが、本編で自分の頭を使う楽しさです。</p>
+    <div class="btn-row"><button class="btn primary" id="howtoClose">とじる</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= データ ================= */
+// お手本モードの第1表：コイン1〜12 × 3回（+1=左皿, -1=右皿, 0=外）。全24通りの一意性と各回4対4を検証済み
+const TABLE = [[1,1,0],[-1,-1,1],[1,0,1],[-1,0,0],[1,0,-1],[1,-1,1],[-1,1,0],[-1,1,1],[0,-1,-1],[0,-1,0],[0,1,-1],[0,0,-1]];
+const $ = id => document.getElementById(id);
+const stage = $('stage'), tray = $('tray');
+const MODES = {
+  nyumon: { title: '入門編', knownLight: true },
+  honpen: { title: '本編（12枚・3回）', knownLight: false },
+  hatten: { title: '発展編（借り玉）', knownLight: false },
+  otehon: { title: 'お手本モード', knownLight: false },
+  free:   { title: '自由練習', knownLight: false },
+};
+const NYUMON_LEVELS = [
+  { n: 3, w: 1, label: '3枚・1回' },
+  { n: 9, w: 2, label: '9枚・2回' },
+  { n: 27, w: 3, label: '27枚・3回' },
+];
+let G = null; // ゲーム状態
+let soundOn = true;
+
+/* ================= 音 ================= */
+let AC = null;
+function ac() { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); return AC; }
+function tone(freq, dur, type, vol, when = 0, slideTo = null) {
+  if (!soundOn) return;
+  try {
+    const a = ac(), o = a.createOscillator(), g = a.createGain();
+    o.type = type || 'sine'; o.frequency.setValueAtTime(freq, a.currentTime + when);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, a.currentTime + when + dur);
+    g.gain.setValueAtTime(vol, a.currentTime + when);
+    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + when + dur);
+    o.connect(g); g.connect(a.destination); o.start(a.currentTime + when); o.stop(a.currentTime + when + dur + 0.05);
+  } catch (e) {}
+}
+const sndPlace = () => { tone(1180, 0.07, 'triangle', 0.18); tone(1760, 0.05, 'sine', 0.08, 0.015); };
+const sndCreak = () => { tone(160, 0.55, 'sawtooth', 0.05, 0, 90); tone(82, 0.6, 'triangle', 0.10, 0, 60); };
+const sndClank = () => { tone(620, 0.12, 'square', 0.06); tone(930, 0.1, 'triangle', 0.12, 0.02); };
+const sndGood = () => { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.22, 'triangle', 0.16, i * 0.11)); };
+const sndBad = () => { tone(220, 0.25, 'sine', 0.14); tone(185, 0.35, 'sine', 0.14, 0.16); };
+
+/* ================= 画面遷移 ================= */
+function show(id) { ['scr-home', 'scr-game'].forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => startMode(b.dataset.mode)));
+$('backBtn').addEventListener('click', () => { show('scr-home'); refreshRecords(); });
+$('howtoBtn').addEventListener('click', () => $('howtoModal').classList.add('open'));
+$('howtoClose').addEventListener('click', () => $('howtoModal').classList.remove('open'));
+$('soundBtn').addEventListener('click', () => { soundOn = !soundOn; $('soundBtn').textContent = soundOn ? '🔊 おと オン' : '🔇 おと オフ'; if (soundOn) sndPlace(); });
+function refreshRecords() {
+  let rec = {};
+  try { rec = JSON.parse(localStorage.getItem('nisegane-rec') || '{}'); } catch (e) {}
+  for (const k of Object.keys(MODES)) {
+    const el = $('rec-' + k);
+    if (el) el.textContent = rec[k] ? `🏆 クリア ${rec[k]} 回` : '';
+  }
+}
+function saveRecord(mode) {
+  let rec = {};
+  try { rec = JSON.parse(localStorage.getItem('nisegane-rec') || '{}'); } catch (e) {}
+  rec[mode] = (rec[mode] || 0) + 1;
+  localStorage.setItem('nisegane-rec', JSON.stringify(rec));
+}
+refreshRecords();
+
+/* ================= ゲーム開始 ================= */
+function startMode(mode) {
+  const base = { mode, level: 0, freeN: 9, freeW: 3, over: false, weighing: false };
+  if (mode === 'nyumon') { const L = NYUMON_LEVELS[0]; Object.assign(base, { n: L.n, maxW: L.w }); }
+  if (mode === 'honpen') Object.assign(base, { n: 12, maxW: 3 });
+  if (mode === 'hatten') Object.assign(base, { n: 8, maxW: 3, genuine: true });
+  if (mode === 'otehon') Object.assign(base, { n: 12, maxW: 3 });
+  if (mode === 'free') Object.assign(base, { n: 9, maxW: 3 });
+  G = base;
+  show('scr-game');
+  buildGame();
+  requestAnimationFrame(() => layoutCoins());
+}
+function newProblem() {
+  // ニセ金を決める（お手本・本編・発展・自由は重い/軽いランダム、入門は軽い）
+  const fakeId = 1 + Math.floor(Math.random() * G.n);
+  let dir;
+  if (MODES[G.mode].knownLight) dir = 'light';
+  else dir = Math.random() < 0.5 ? 'heavy' : 'light';
+  G.fake = { id: fakeId, dir };
+  G.used = 0; G.history = []; G.over = false; G.weighing = false;
+  G.place = {}; // coinId -> 'L' | 'R' | 'T'
+  for (let i = 1; i <= G.n; i++) G.place[i] = 'T';
+  if (G.genuine) G.place['G'] = 'T';
+  setAngle(0, true);
+  layoutCoins();
+  renderStatus(); renderPlan();
+  setMsg(G.mode === 'otehon' ? '「お手本どおり並べる」を押すか、第1表のとおりに並べて「量る」を押してください。' : '金貨をドラッグして皿にのせ、「量る」を押してください。', '');
+}
+function buildGame() {
+  // コインDOM生成
+  stage.querySelectorAll('.coin').forEach(e => e.remove());
+  tray.querySelectorAll('.coin').forEach(e => e.remove());
+  const small = G.n > 12;
+  for (let i = 1; i <= G.n; i++) {
+    const d = document.createElement('div');
+    d.className = 'coin' + (small ? ' small' : ''); d.textContent = i; d.dataset.coin = i;
+    stage.appendChild(d); attachDrag(d);
+  }
+  if (G.genuine) {
+    const d = document.createElement('div');
+    d.className = 'coin genuine'; d.textContent = '本'; d.dataset.coin = 'G'; d.title = 'ホンモノと分かっている借り玉';
+    stage.appendChild(d); attachDrag(d);
+  }
+  // レベル選択（入門・自由）
+  const lr = $('levelRow'); lr.innerHTML = '';
+  if (G.mode === 'nyumon') {
+    lr.classList.remove('hidden');
+    NYUMON_LEVELS.forEach((L, i) => {
+      const b = document.createElement('button'); b.className = 'level-btn' + (i === G.level ? ' sel' : ''); b.textContent = L.label;
+      b.addEventListener('click', () => { G.level = i; G.n = L.n; G.maxW = L.w; buildGame(); });
+      lr.appendChild(b);
+    });
+  } else if (G.mode === 'free') {
+    lr.classList.remove('hidden');
+    const mk = (label, fn, sel) => { const b = document.createElement('button'); b.className = 'level-btn' + (sel ? ' sel' : ''); b.textContent = label; b.addEventListener('click', fn); lr.appendChild(b); };
+    [5, 8, 9, 12, 13].forEach(n => mk(n + '枚', () => { G.freeN = n; G.n = n; buildGame(); }, G.freeN === n));
+    const sep = document.createElement('span'); sep.textContent = '／'; sep.style.color = 'var(--sub)'; lr.appendChild(sep);
+    [2, 3, 4].forEach(w => mk(w + '回', () => { G.freeW = w; G.maxW = w; buildGame(); }, G.freeW === w));
+  } else lr.classList.add('hidden');
+  // ガイド
+  const gb = $('guideBox');
+  if (G.mode === 'hatten') { gb.classList.remove('hidden'); gb.innerHTML = '「<b>本</b>」の玉は、ホンモノと分かっている<b>借り玉</b>です。皿の枚数をそろえたいときなどに使えます。ニセ金は金色の8枚の中にあります。'; }
+  else if (G.mode === 'nyumon') { gb.classList.remove('hidden'); gb.innerHTML = 'ニセ金は<b>軽い</b>ことが分かっています。天秤が傾いたら、<b>上がった方の皿</b>にニセ金があります。'; }
+  else if (G.mode === 'otehon') { gb.classList.remove('hidden'); gb.innerHTML = '下の<b>第1表</b>の並べ方で3回量ると、結果の並びから答えが分かります。並べ方が表と違うと「量る」は押せません。'; }
+  else gb.classList.add('hidden');
+  $('autoBtn').style.display = G.mode === 'otehon' ? '' : 'none';
+  $('planBox').classList.toggle('hidden', G.mode !== 'otehon');
+  newProblem();
+}
+
+/* ================= 天秤の描画 ================= */
+const PIVOT = { x: 360, y: 86 }, ARM = 250, DROP = 128;
+let angleDeg = 0; // 左が重いと負（左が下がる）
+function setAngle(ang, instant) {
+  angleDeg = ang;
+  const a = ang * Math.PI / 180;
+  const L = { x: PIVOT.x - ARM * Math.cos(a), y: PIVOT.y + ARM * Math.sin(a) };
+  const R = { x: PIVOT.x + ARM * Math.cos(a), y: PIVOT.y - ARM * Math.sin(a) };
+  const bl = $('beamLine');
+  bl.setAttribute('x1', L.x); bl.setAttribute('y1', L.y); bl.setAttribute('x2', R.x); bl.setAttribute('y2', R.y);
+  const set = (id, x1, y1, x2, y2) => { const e = $(id); e.setAttribute('x1', x1); e.setAttribute('y1', y1); e.setAttribute('x2', x2); e.setAttribute('y2', y2); };
+  set('strL1', L.x, L.y, L.x - 58, L.y + DROP); set('strL2', L.x, L.y, L.x + 58, L.y + DROP);
+  set('strR1', R.x, R.y, R.x - 58, R.y + DROP); set('strR2', R.x, R.y, R.x + 58, R.y + DROP);
+  $('panLpath').setAttribute('d', `M ${L.x - 88} ${L.y + DROP} Q ${L.x} ${L.y + DROP + 56} ${L.x + 88} ${L.y + DROP} Q ${L.x} ${L.y + DROP + 28} ${L.x - 88} ${L.y + DROP} Z`);
+  $('panRpath').setAttribute('d', `M ${R.x - 88} ${R.y + DROP} Q ${R.x} ${R.y + DROP + 56} ${R.x + 88} ${R.y + DROP} Q ${R.x} ${R.y + DROP + 28} ${R.x - 88} ${R.y + DROP} Z`);
+  layoutPans();
+}
+function animateAngle(to, dur, done) {
+  const from = angleDeg, t0 = performance.now();
+  function frame(t) {
+    const p = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    setAngle(from + (to - from) * e, false);
+    if (p < 1) requestAnimationFrame(frame);
+    else if (done) done();
+  }
+  requestAnimationFrame(frame);
+}
+/* コイン配置：皿の上は viewBox 座標→ステージpx に変換して並べる */
+function vbToPx(x, y) {
+  const r = stage.getBoundingClientRect();
+  return { x: x / 720 * r.width, y: y / 430 * r.height };
+}
+function slotPos(centerVb, idx, count, small) {
+  // 皿の内側に最大2段で並べる
+  const cols = Math.min(count, 5);
+  const row = Math.floor(idx / 5), col = idx % 5;
+  const inRow = Math.min(count - row * 5, 5);
+  const dx = (col - (inRow - 1) / 2) * (small ? 34 : 44);
+  const dy = -14 - row * (small ? 30 : 40);
+  return vbToPx(centerVb.x + dx, centerVb.y + DROP + dy);
+}
+function layoutPans() {
+  if (!G) return;
+  const a = angleDeg * Math.PI / 180;
+  const L = { x: PIVOT.x - ARM * Math.cos(a), y: PIVOT.y + ARM * Math.sin(a) };
+  const R = { x: PIVOT.x + ARM * Math.cos(a), y: PIVOT.y - ARM * Math.sin(a) };
+  const small = G.n > 12;
+  const size = small ? 36 : 46;
+  const ids = Object.keys(G.place);
+  const onL = ids.filter(id => G.place[id] === 'L'), onR = ids.filter(id => G.place[id] === 'R');
+  onL.forEach((id, i) => { const el = coinEl(id); if (el.classList.contains('dragging')) return; const p = slotPos(L, i, onL.length, small); el.style.left = (p.x - size / 2) + 'px'; el.style.top = (p.y - size / 2) + 'px'; });
+  onR.forEach((id, i) => { const el = coinEl(id); if (el.classList.contains('dragging')) return; const p = slotPos(R, i, onR.length, small); el.style.left = (p.x - size / 2) + 'px'; el.style.top = (p.y - size / 2) + 'px'; });
+}
+function layoutCoins() {
+  if (!G) return;
+  const small = G.n > 12;
+  const size = small ? 36 : 46;
+  layoutPans();
+  // トレイ側：ステージ座標ではなくトレイ内の相対配置をステージ上に重ねる
+  const tr = tray.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  const ids = Object.keys(G.place).filter(id => G.place[id] === 'T');
+  const perRow = Math.max(4, Math.floor((tr.width - 16) / (size + 8)));
+  ids.forEach((id, i) => {
+    const el = coinEl(id); if (el.classList.contains('dragging')) return;
+    const col = i % perRow, row = Math.floor(i / perRow);
+    const x = tr.left - sr.left + 10 + col * (size + 8) + size / 2;
+    const y = tr.top - sr.top + 30 + row * (size + 8) + size / 2;
+    el.style.left = (x - size / 2) + 'px'; el.style.top = (y - size / 2) + 'px';
+  });
+  // トレイの高さを確保
+  const rows = Math.ceil(ids.length / perRow);
+  tray.style.minHeight = (44 + rows * (size + 8)) + 'px';
+}
+function coinEl(id) { return stage.querySelector(`.coin[data-coin="${id}"]`); }
+window.addEventListener('resize', () => layoutCoins());
+
+/* ================= ドラッグ ================= */
+function attachDrag(el) {
+  el.addEventListener('pointerdown', e => {
+    if (!G || G.over || G.weighing) return;
+    e.preventDefault();
+    const id = el.dataset.coin;
+    el.classList.add('dragging');
+    const sr = stage.getBoundingClientRect();
+    const size = el.offsetWidth;
+    let lastZone = null;
+    const move = ev => {
+      const x = ev.clientX - sr.left, y = ev.clientY - sr.top;
+      el.style.left = (x - size / 2) + 'px'; el.style.top = (y - size / 2) + 'px';
+      const z = zoneAt(ev.clientX, ev.clientY);
+      if (z !== lastZone) {
+        $('panL').classList.toggle('over', z === 'L');
+        $('panR').classList.toggle('over', z === 'R');
+        lastZone = z;
+      }
+    };
+    const up = ev => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      el.classList.remove('dragging');
+      $('panL').classList.remove('over'); $('panR').classList.remove('over');
+      const z = zoneAt(ev.clientX, ev.clientY);
+      G.place[id] = z || 'T';
+      if (angleDeg !== 0) setAngle(0, true); // コインを動かしたら天秤は水平に戻る
+      sndPlace();
+      layoutCoins();
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  });
+}
+function zoneAt(cx, cy) {
+  for (const [id, z] of [['panL', 'L'], ['panR', 'R']]) {
+    const r = $(id).getBoundingClientRect();
+    if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) return z;
+  }
+  return null;
+}
+
+/* ================= 量る ================= */
+function weightOf(id) {
+  if (id === 'G') return 10;
+  const n = parseInt(id, 10);
+  if (G.fake && n === G.fake.id) return G.fake.dir === 'heavy' ? 11 : 9;
+  return 10;
+}
+function currentOutcome() {
+  let l = 0, r = 0;
+  for (const [id, p] of Object.entries(G.place)) {
+    if (p === 'L') l += weightOf(id);
+    if (p === 'R') r += weightOf(id);
+  }
+  return l > r ? 1 : (l < r ? -1 : 0); // +1 = 左が下がる
+}
+function planPlacement(k) { // お手本：第k回（0始まり）の並べ方
+  const L = [], R = [];
+  TABLE.forEach((row, i) => { if (row[k] === 1) L.push(i + 1); else if (row[k] === -1) R.push(i + 1); });
+  return { L, R };
+}
+function placementMatchesPlan(k) {
+  const { L, R } = planPlacement(k);
+  for (let i = 1; i <= 12; i++) {
+    const want = L.includes(i) ? 'L' : (R.includes(i) ? 'R' : 'T');
+    if (G.place[i] !== want) return false;
+  }
+  return true;
+}
+$('autoBtn').addEventListener('click', () => {
+  if (!G || G.over || G.weighing || G.used >= G.maxW) return;
+  const { L, R } = planPlacement(G.used);
+  for (let i = 1; i <= 12; i++) G.place[i] = L.includes(i) ? 'L' : (R.includes(i) ? 'R' : 'T');
+  setAngle(0, true); layoutCoins(); sndPlace();
+  setMsg(`${G.used + 1}回目のお手本の並べ方にしました。「量る」を押してください。`, '');
+});
+$('weighBtn').addEventListener('click', () => {
+  if (!G || G.over || G.weighing) return;
+  if (G.used >= G.maxW) { setMsg('もう量れません。「こたえる」で答えてください。', 'bad'); return; }
+  const onL = Object.values(G.place).filter(p => p === 'L').length;
+  const onR = Object.values(G.place).filter(p => p === 'R').length;
+  if (onL + onR === 0) { setMsg('皿に金貨をのせてから量ってください。', 'bad'); return; }
+  if (G.mode === 'otehon' && !placementMatchesPlan(G.used)) {
+    setMsg('お手本（第1表）の並べ方と違います。「お手本どおり並べる」で並べ直してください。', 'bad'); return;
+  }
+  G.weighing = true; $('weighBtn').disabled = true;
+  const out = currentOutcome(); // +1 左が下がる / 0 つり合い / -1 右が下がる
+  sndCreak();
+  animateAngle(out === 1 ? 7.5 : (out === -1 ? -7.5 : 0), 750, () => {
+    sndClank();
+    G.history.push(out); G.used++; G.weighing = false; $('weighBtn').disabled = false;
+    renderStatus(); renderPlan();
+    const sym = out === 1 ? '◀ 左が下がった' : (out === -1 ? '右が下がった ▶' : '＝ つり合った');
+    if (G.used >= G.maxW) setMsg(`${sym}。もう量れません。「こたえる」で答えてください。`, '');
+    else setMsg(`${sym}。あと ${G.maxW - G.used} 回量れます。`, '');
+    if (G.mode === 'otehon' && G.used >= G.maxW) showTable2();
+  });
+});
+function renderStatus() {
+  const left = G.maxW - G.used;
+  $('remainLbl').textContent = left > 0 ? `あと ${left} 回 量れます` : 'もう量れません';
+  $('remainLbl').classList.toggle('zero', left <= 0);
+  const h = $('history'); h.innerHTML = '';
+  for (let i = 0; i < G.maxW; i++) {
+    const c = document.createElement('span'); c.className = 'hist-chip';
+    if (i < G.history.length) {
+      c.classList.add('done');
+      c.textContent = G.history[i] === 1 ? '◀' : (G.history[i] === -1 ? '▶' : '＝');
+      c.title = G.history[i] === 1 ? '左が下がった' : (G.history[i] === -1 ? '右が下がった' : 'つり合った');
+    } else c.textContent = '・';
+    h.appendChild(c);
+  }
+}
+function setMsg(t, cls) { const m = $('msg'); m.textContent = t; m.className = 'msg' + (cls ? ' ' + cls : ''); }
+
+/* ================= お手本：第1表・第2表 ================= */
+function sideMark(v) { return v === 1 ? '<span class="side-l">左</span>' : (v === -1 ? '<span class="side-r">右</span>' : '<span class="side-o">外</span>'); }
+function outMark(v) { return v === 1 ? '◀' : (v === -1 ? '▶' : '＝'); }
+function renderPlan() {
+  const box = $('planBox');
+  if (G.mode !== 'otehon') { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  let html = '<h3 style="margin:2px 0 6px; font-size:16px;">📖 第1表（並べ方）</h3><table class="plan"><tr><th>金貨</th><th>1回目</th><th>2回目</th><th>3回目</th></tr>';
+  TABLE.forEach((row, i) => {
+    html += `<tr><td><b>${i + 1}</b></td>` + row.map(v => `<td>${sideMark(v)}</td>`).join('') + '</tr>';
+  });
+  html += '</table>';
+  if (G.used < G.maxW) {
+    const { L, R } = planPlacement(G.used);
+    html += `<p style="font-size:14px; text-align:center; margin:6px 0 0;">${G.used + 1}回目： 左皿に <b>${L.join('・')}</b>、右皿に <b>${R.join('・')}</b></p>`;
+  }
+  box.innerHTML = html;
+}
+function decodeOtehon() {
+  // 結果列と一致 → 重い／反転一致 → 軽い
+  const h = G.history;
+  for (let i = 0; i < 12; i++) {
+    const row = TABLE[i];
+    if (row.every((v, k) => v === h[k])) return { id: i + 1, dir: 'heavy' };
+    if (row.every((v, k) => -v === h[k])) return { id: i + 1, dir: 'light' };
+  }
+  return null;
+}
+function showTable2() {
+  const dec = decodeOtehon();
+  const box = $('planBox');
+  let html = '<h3 style="margin:2px 0 6px; font-size:16px;">📖 第2表（答えの読み取り）</h3>';
+  html += `<p style="font-size:14.5px;">結果の並びは「${G.history.map(outMark).join(' ')}」でした。第1表で、結果と<b>一致</b>する金貨は「重い」、<b>反対</b>になる金貨は「軽い」ニセ金です。</p>`;
+  html += '<table class="plan"><tr><th>金貨</th><th>表の並び</th><th>関係</th><th>答え</th></tr>';
+  TABLE.forEach((row, i) => {
+    const same = row.every((v, k) => v === G.history[k]);
+    const opp = row.every((v, k) => -v === G.history[k]);
+    if (same || opp) html += `<tr class="hit"><td><b>${i + 1}</b></td><td>${row.map(outMark).join(' ')}</td><td>${same ? '一致' : '反対'}</td><td>${i + 1}番が「${same ? '重い' : '軽い'}」ニセ金</td></tr>`;
+  });
+  html += '</table>';
+  box.innerHTML = html;
+  if (dec) setMsg(`第2表のとおり、答えは ${dec.id}番の「${dec.dir === 'heavy' ? '重い' : '軽い'}」ニセ金のはずです。「こたえる」で確認してください。`, 'good');
+}
+
+/* ================= こたえる ================= */
+let pickId = null, pickDir = null;
+$('answerBtn').addEventListener('click', () => {
+  if (!G || G.over || G.weighing) return;
+  pickId = null; pickDir = MODES[G.mode].knownLight ? 'light' : null;
+  const grid = $('pickGrid'); grid.innerHTML = '';
+  for (let i = 1; i <= G.n; i++) {
+    const b = document.createElement('button'); b.className = 'pick'; b.textContent = i;
+    b.addEventListener('click', () => { pickId = i; grid.querySelectorAll('.pick').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sndPlace(); });
+    grid.appendChild(b);
+  }
+  $('dirRow').style.display = MODES[G.mode].knownLight ? 'none' : '';
+  $('answerLead').textContent = MODES[G.mode].knownLight ? 'ニセ金（軽い）だと思う金貨を1枚選んでください。' : 'ニセ金だと思う金貨を1枚と、重いか軽いかを選んでください。';
+  document.querySelectorAll('.dir-btn').forEach(b => {
+    b.classList.remove('sel');
+    b.onclick = () => { pickDir = b.dataset.dir; document.querySelectorAll('.dir-btn').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); sndPlace(); };
+  });
+  $('answerModal').classList.add('open');
+});
+$('answerCancel').addEventListener('click', () => $('answerModal').classList.remove('open'));
+$('decideBtn').addEventListener('click', () => {
+  if (pickId == null || (!MODES[G.mode].knownLight && !pickDir)) { return; }
+  $('answerModal').classList.remove('open');
+  judge(pickId, MODES[G.mode].knownLight ? 'light' : pickDir);
+});
+function judge(id, dir) {
+  const ok = G.fake.id === id && G.fake.dir === dir;
+  if (ok) {
+    G.over = true; saveRecord(G.mode); sndGood(); confetti();
+    $('resultTitle').textContent = '🎉 正解！';
+    let extra = '';
+    if (G.mode === 'otehon') extra = '<p>お手本モードでは、並べ方を先に全部決めておくことで、結果の並びから機械的に答えが読めました。第1表・第2表の仕組みは「しくみ（コラム）」でも説明しています。</p>';
+    if (G.mode === 'honpen') extra = `<p>結果の並びは「${G.history.map(outMark).join(' ')}」でした。試行錯誤でたどり着くのも、第1表のような計画で攻めるのも、どちらも立派な解き方です。</p>`;
+    $('resultText').innerHTML = `ニセ金は <b>${id}番</b> の金貨で、本物より <b>${dir === 'heavy' ? '重い' : '軽い'}</b> でした。${G.used} 回の量り方で当てました。`;
+    $('resultExtra').innerHTML = extra;
+    $('resultModal').classList.add('open');
+  } else {
+    sndBad();
+    if (G.used < G.maxW) {
+      setMsg(`ちがいました。ニセ金は ${id}番の「${dir === 'heavy' ? '重い' : '軽い'}」ではありません。あと ${G.maxW - G.used} 回量れます。`, 'bad');
+    } else {
+      G.over = true;
+      $('resultTitle').textContent = '😢 残念';
+      $('resultText').innerHTML = `答えは <b>${G.fake.id}番</b> の金貨が、本物より <b>${G.fake.dir === 'heavy' ? '重い' : '軽い'}</b> でした。もう一度挑戦してみてください。`;
+      $('resultExtra').innerHTML = G.mode === 'honpen' || G.mode === 'hatten' ? '<p>ヒント：お手本モードで「第1表」の考え方を体験すると、本編の攻め方が見えてきます。</p>' : '';
+      $('resultModal').classList.add('open');
+    }
+  }
+}
+$('retryBtn').addEventListener('click', () => { if (!G.weighing) newProblem(); });
+$('resultRetry').addEventListener('click', () => { $('resultModal').classList.remove('open'); newProblem(); });
+$('resultHome').addEventListener('click', () => { $('resultModal').classList.remove('open'); show('scr-home'); refreshRecords(); });
+
+/* ================= 紙吹雪 ================= */
+function confetti() {
+  const colors = ['#f2b63c', '#0f766e', '#dc2626', '#2563eb', '#f472b6', '#059669'];
+  for (let i = 0; i < 70; i++) {
+    const d = document.createElement('div');
+    d.className = 'confetti';
+    const s = 6 + Math.random() * 7;
+    d.style.cssText = `left:${Math.random() * 100}vw; width:${s}px; height:${s * (0.5 + Math.random())}px; background:${colors[i % colors.length]};`;
+    document.body.appendChild(d);
+    const dx = (Math.random() - 0.5) * 160, rot = Math.random() * 720 - 360;
+    d.animate([
+      { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+      { transform: `translate(${dx}px, ${window.innerHeight * 0.92}px) rotate(${rot}deg)`, opacity: 0.7 },
+    ], { duration: 1900 + Math.random() * 1400, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => d.remove();
+  }
+}
+</script>
+</body>
+</html>
