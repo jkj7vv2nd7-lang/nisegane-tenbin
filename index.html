@@ -87,6 +87,9 @@
   .level-btn.sel { background: var(--accent2); color: #fff; border-color: var(--accent2); }
   .confetti { position: fixed; top: -12px; z-index: 80; pointer-events: none; border-radius: 3px; }
   .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .title-anim { max-width: 400px; margin: 0 auto; }
+  .title-anim svg { width: 100%; height: auto; display: block; }
+  h1 { background: linear-gradient(92deg, #92400e, #b45309 40%, #f59e0b 55%, #b45309 70%, #92400e); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .foot { text-align: center; color: var(--sub); font-size: 12px; margin-top: 14px; line-height: 1.7; }
 </style>
 </head>
@@ -95,6 +98,31 @@
   <h1>🪙 ニセ金はどれだ！</h1>
   <div class="subtitle">― 天秤で3回勝負 ―</div>
 
+  <div class="title-anim" aria-hidden="true">
+    <svg viewBox="40 20 640 400">
+      <ellipse cx="360" cy="404" rx="150" ry="14" fill="#e7d6b4" />
+      <line id="dBeam" x1="110" y1="86" x2="610" y2="86" stroke="#8a5a1d" stroke-width="13" stroke-linecap="round" />
+      <line id="dStrL1" x1="110" y1="86" x2="52" y2="214" stroke="#8a5a1d" stroke-width="4" />
+      <line id="dStrL2" x1="110" y1="86" x2="168" y2="214" stroke="#8a5a1d" stroke-width="4" />
+      <line id="dStrR1" x1="610" y1="86" x2="552" y2="214" stroke="#8a5a1d" stroke-width="4" />
+      <line id="dStrR2" x1="610" y1="86" x2="668" y2="214" stroke="#8a5a1d" stroke-width="4" />
+      <path id="dPanL" d="M 22 214 Q 110 270 198 214 Q 110 242 22 214 Z" fill="#b45309" stroke="#8a5a1d" stroke-width="3" />
+      <path id="dPanR" d="M 522 214 Q 610 270 698 214 Q 610 242 522 214 Z" fill="#b45309" stroke="#8a5a1d" stroke-width="3" />
+      <g id="dCoinsL">
+        <circle cx="-30" cy="-16" r="17" fill="#f2b63c" stroke="#9a6206" stroke-width="3" />
+        <circle cx="28" cy="-16" r="17" fill="#dc2626" stroke="#9a6206" stroke-width="3" />
+        <circle cx="-2" cy="-34" r="17" fill="#f2b63c" stroke="#9a6206" stroke-width="3" />
+      </g>
+      <g id="dCoinsR">
+        <circle cx="-28" cy="-16" r="17" fill="#f2b63c" stroke="#9a6206" stroke-width="3" />
+        <circle cx="30" cy="-16" r="17" fill="#f2b63c" stroke="#9a6206" stroke-width="3" />
+        <circle cx="0" cy="-34" r="17" fill="#f2b63c" stroke="#9a6206" stroke-width="3" />
+      </g>
+      <rect x="346" y="70" width="28" height="290" rx="10" fill="#a06a24" stroke="#8a5a1d" stroke-width="3" />
+      <circle cx="360" cy="86" r="15" fill="#f2b63c" stroke="#8a5a1d" stroke-width="4" />
+      <path d="M 288 402 L 432 402 L 402 356 L 318 356 Z" fill="#a06a24" stroke="#8a5a1d" stroke-width="3" />
+    </svg>
+  </div>
   <!-- モード選択 -->
   <div id="scr-home">
     <div class="card">
@@ -646,6 +674,33 @@ function confetti() {
     ], { duration: 1900 + Math.random() * 1400, easing: 'cubic-bezier(.2,.7,.4,1)' }).onfinish = () => d.remove();
   }
 }
+/* ================= タイトルの天秤アニメーション ================= */
+(function decoLoop() {
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dBeam = $('dBeam');
+  if (!dBeam) return;
+  function drawDeco(angDeg) {
+    const a = angDeg * Math.PI / 180;
+    const L = { x: 360 - 250 * Math.cos(a), y: 86 + 250 * Math.sin(a) };
+    const R = { x: 360 + 250 * Math.cos(a), y: 86 - 250 * Math.sin(a) };
+    dBeam.setAttribute('x1', L.x); dBeam.setAttribute('y1', L.y); dBeam.setAttribute('x2', R.x); dBeam.setAttribute('y2', R.y);
+    const set = (id, x1, y1, x2, y2) => { const e = $(id); e.setAttribute('x1', x1); e.setAttribute('y1', y1); e.setAttribute('x2', x2); e.setAttribute('y2', y2); };
+    set('dStrL1', L.x, L.y, L.x - 58, L.y + 128); set('dStrL2', L.x, L.y, L.x + 58, L.y + 128);
+    set('dStrR1', R.x, R.y, R.x - 58, R.y + 128); set('dStrR2', R.x, R.y, R.x + 58, R.y + 128);
+    $('dPanL').setAttribute('d', 'M ' + (L.x - 88) + ' ' + (L.y + 128) + ' Q ' + L.x + ' ' + (L.y + 184) + ' ' + (L.x + 88) + ' ' + (L.y + 128) + ' Q ' + L.x + ' ' + (L.y + 156) + ' ' + (L.x - 88) + ' ' + (L.y + 128) + ' Z');
+    $('dPanR').setAttribute('d', 'M ' + (R.x - 88) + ' ' + (R.y + 128) + ' Q ' + R.x + ' ' + (R.y + 184) + ' ' + (R.x + 88) + ' ' + (R.y + 128) + ' Q ' + R.x + ' ' + (R.y + 156) + ' ' + (R.x - 88) + ' ' + (R.y + 128) + ' Z');
+    $('dCoinsL').setAttribute('transform', 'translate(' + L.x + ' ' + (L.y + 128) + ')');
+    $('dCoinsR').setAttribute('transform', 'translate(' + R.x + ' ' + (R.y + 128) + ')');
+  }
+  drawDeco(0);
+  if (reduced) return;
+  function frame(t) {
+    if (!$('scr-home').classList.contains('hidden')) drawDeco(5.5 * Math.sin(t / 1500));
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
 </script>
 </body>
 </html>
